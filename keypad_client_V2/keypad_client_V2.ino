@@ -3,7 +3,7 @@
 #define rx_tx_pin               11
 #define common_interrupt_pin    2
 #define num_switches            8
-const int device_id = 1;
+const int device_id = 0;
 const int device_type = 1;
 
 bool synced = false;
@@ -23,6 +23,50 @@ byte my_switch_data[][3] =
   button_switch, 10, circuit_C1,
 };
 
+
+
+
+void ping() {
+    digitalWrite(rx_tx_pin,HIGH);
+    Serial.write("i");
+    Serial.write(device_id);
+    Serial.write("p");
+    Serial.write(device_type);
+    Serial.flush();
+    digitalWrite(rx_tx_pin,LOW);
+}
+void sync() {
+    if (synced == false) {
+        synced = true;
+        while (canceled_sync == false) {
+            if (digitalRead(3) == HIGH) {                                         ////
+               digitalWrite(rx_tx_pin, HIGH ); //enable to transmit
+               Serial.print("i");
+               Serial.print("z");
+               Serial.print("s");
+               Serial.print("n"); 
+               Serial.print("f");
+               Serial.flush(); 
+               digitalWrite(rx_tx_pin, LOW ); 
+    
+               delay(50); 
+    
+               
+               if(Serial.find("i")) {
+                    if(Serial.read() == 0) {
+                        if(Serial.read() == "p"){
+                            int device_type=Serial.parseInt(); 
+                            if(Serial.read()=='f') //finish reading
+                                {
+                                  //devices[i] = device_type;
+                                }
+                         } 
+                     }       
+                }
+            } 
+        }
+    }
+}
 void setup() {
    int result;
   Serial.begin(9600);
@@ -64,48 +108,22 @@ void setup() {
 }
 
 
-void ping() {
-    digitalWrite(rx_tx_pin,HIGH);
-    Serial.write("i");
-    Serial.write(device_id);
-    Serial.write("p");
-    Serial.write(device_type);
-    Serial.flush();
-    digitalWrite(rx_tx_pin,LOW);
-}
-void sync() {
-    if (synced == false) {
-      synced = true;
-      while (canceled_sync == false) {
-        if (digitalRead(3) == HIGH) {                                         ////
-           digitalWrite(rx_tx_pin, HIGH ); //enable to transmit
-           Serial.print( "i" ); 
-           Serial.println( "s" );
-           Serial.println("n"); 
-           Serial.flush(); 
-           digitalWrite(rx_tx_pin, LOW ); 
-        }
-        
-      }
-
-    }
-    }
-
 void loop() {
   
   if ( Serial.available ()) {
     if ( Serial.read () == 'I' ) {
       char id = Serial.read();
-      if (id == "Z"){
-        char function = Serial.read ();
-        if (function == 'S' ) {
-          if ( Serial.read () == 'F' ) {
-            sync();
-            }
+      if (id == "Z"){       // z meaning id for all unadopted devices
+          char function = Serial.read ();
+          if (function == 'S' ) {
+              if ( Serial.read () == 'F' ) {
+                sync();
+                }
+              }
           }
       
       
-        if (id == device_id){
+      if (id == device_id){
           if (function == 'P'){
             ping();
             }

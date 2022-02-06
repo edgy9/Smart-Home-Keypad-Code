@@ -39,17 +39,20 @@ void ping_devices(){
     digitalWrite(2, LOW);
     
     if(Serial.find("i")) {
-      if(Serial.read() == i) {
-        if(Serial.read() == "p"){
-        int device_type=Serial.parseInt(); 
-          if(Serial.read()=='f') //finish reading
-          {
-            device_list[i][1] = device_type;
-            device_list[i][2] = online;
-          }
-        } 
-      }       
-      }
+        if(Serial.read() == i) {
+          if(Serial.read() == "p"){
+          int device_type=Serial.parseInt(); 
+            if(Serial.read()=='f') //finish reading
+            {
+              device_list[i][1] = device_type;
+              device_list[i][2] = online;
+            }
+          } 
+         }       
+     }
+     else{
+          device_list[i][2] = offline;
+     }
     
     
   }
@@ -58,13 +61,9 @@ void setup() {
    Serial.begin(9600);
    pinMode(2, OUTPUT);
    digitalWrite (2, HIGH );
-   int devices[1];
-   int current_id_count = 0;
+   
    ping_devices();
-   struct Device {
-    int id;
-    int type;
-   };
+   
 }
 void loop() {
   if (sync_button == true) {
@@ -75,6 +74,7 @@ void loop() {
 
 void new_device() {
   int i = 1;
+  ping_devices();
   while(i < 17){
     
   }
