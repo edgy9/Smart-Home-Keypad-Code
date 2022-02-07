@@ -3,7 +3,7 @@
 #define rx_tx_pin               11
 #define common_interrupt_pin    2
 #define num_switches            8
-const int device_id = 0;
+//const int device_id = 0;
 const int device_type = 1;
 
 bool synced = false;
@@ -52,13 +52,13 @@ void sync() {
                delay(50); 
     
                
-               if(Serial.find("i")) {
-                    if(Serial.read() == 0) {
-                        if(Serial.read() == "p"){
-                            int device_type=Serial.parseInt(); 
-                            if(Serial.read()=='f') //finish reading
+               if(Serial.find("I")) {
+                    if(Serial.read() == "N") {
+                        if(Serial.read() == "P"){
+                            int new_device_id=Serial.parseInt(); 
+                            if(Serial.read()=='F') //finish reading
                                 {
-                                  //devices[i] = device_type;
+                                  const int device_id = new_device_id;
                                 }
                          } 
                      }       
@@ -109,26 +109,30 @@ void setup() {
 
 
 void loop() {
-  
-  if ( Serial.available ()) {
-    if ( Serial.read () == 'I' ) {
-      char id = Serial.read();
-      if (id == "Z"){       // z meaning id for all unadopted devices
-          char function = Serial.read ();
-          if (function == 'S' ) {
-              if ( Serial.read () == 'F' ) {
-                sync();
+  if(synced == False){
+      if ( Serial.available ()) {
+        if ( Serial.read () == 'I' ) {
+          char id = Serial.read();
+          if (id == "Z"){       // z meaning id for all unadopted devices
+              char function = Serial.read ();
+              if (function == 'S' ) {
+                  if ( Serial.read () == 'F' ) {
+                    sync();
+                    }
+                  }
+              }
+          
+          
+          if (id == device_id){
+              if (function == 'P'){
+                ping();
                 }
               }
-          }
-      
-      
-      if (id == device_id){
-          if (function == 'P'){
-            ping();
             }
-          }
-        }
+      }
+    }
+  else{
+    
   }
 }
 

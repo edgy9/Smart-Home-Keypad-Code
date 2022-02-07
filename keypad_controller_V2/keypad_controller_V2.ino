@@ -76,12 +76,16 @@ void new_device() {
   int i = 1;
   ping_devices();
   while(i < 17){
-    
+      if(device_list[i][2] == offline){
+        int id = i;
+        Serial.print("I");
+        Serial.print("N");
+        Serial.print("P");
+        Serial.print(id);
+        Serial.print("F");
+        }
   }
-  int id = 10;
-  Serial.print("I");
-  Serial.print("N");
-  Serial.print(id);
+  
 }
 
 void sync() {
