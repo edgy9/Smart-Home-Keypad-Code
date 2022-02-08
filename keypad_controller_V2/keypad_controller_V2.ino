@@ -1,7 +1,15 @@
+#include <Ethernet.h>
+#include <MQTT.h>
+#include "DHT.h"
+
+#define DHTPIN 2  
+#define DHTTYPE DHT22
+byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+byte ip[] = {192, 168, 1, 102};  // <- change to match your network
 
 bool sync_button = false;
-
-
+unsigned long lastMillis = 0;
+const int controller_id = 1
 int online =     1;
 int offline =    0;
 byte device_list[][3] =   //id 
@@ -25,6 +33,32 @@ byte device_list[][3] =   //id
   15, 0,  offline,
 };
 
+EthernetClient net;
+MQTTClient client;
+DHT dht(DHTPIN, DHTTYPE);
+
+void connect() {
+  Serial.print("connecting...");
+  while (!client.connect("arduino", "public", "public")) {
+    Serial.print(".");
+    delay(1000);
+  }
+
+  Serial.println("\nconnected!");
+  char path = "/light_switch_controller/" + controller_id
+  client.subscribe(path);
+  // client.unsubscribe("/hello");
+}
+
+
+void messageReceived(String &topic, String &payload) {
+  Serial.println("incoming: " + topic + " - " + payload);
+
+  // Note: Do not use the client in the callback to publish, subscribe or
+  // unsubscribe as it may cause deadlocks when other things arrive while
+  // sending and receiving acknowledgments. Instead, change a global variable,
+  // or push to a queue and handle it in the loop after calling `client.loop()`.
+}
 
 
 void ping_devices(){
@@ -57,19 +91,55 @@ void ping_devices(){
     
   }
 }
+
+void update_button(int id, int button_id){
+  Serial.println(id, button_id);
+}
 void setup() {
    Serial.begin(9600);
+   Ethernet.begin(mac, ip);
    pinMode(2, OUTPUT);
    digitalWrite (2, HIGH );
-   
+   dht.begin();
+   client.begin("192.168.1.25", net);
+   client.onMessage(messageReceived);
+   connect();
    ping_devices();
    
 }
 void loop() {
+  client.loop();
+
+  if (!client.connected()) {
+    connect();
+  }
+
+  if (millis() - lastMillis > 10000) {       //send temperature every 10 seconds
+    lastMillis = millis();
+    char h_path = "/light_switch_controller/" + controller_id + "/stats/humidity/";
+    char t_path = "/light_switch_controller/" + controller_id + "/stats/temperature"/;
+    float temperature = dht.readTemperature();
+    float humidity = dht.readHumidity();
+    client.publish(h_path, temperature);
+    
   if (sync_button == true) {
     sync();
   }
+   if ( Serial.available ()) {
+        if ( Serial.read () == 'i' ) {
+          char id = Serial.read();
+          char function = Serial.read ();
+          if (function == 'u' ) {
+              char button_id = Serial.read ();
+              if ( Serial.read () == 'f' ) {
+                        update_button(id,button_id);
+                        }
+                      }
+                  }
 
+}
+
+  
 }
 
 void new_device() {
@@ -83,7 +153,9 @@ void new_device() {
         Serial.print("P");
         Serial.print(id);
         Serial.print("F");
+        break;
         }
+      ping_devices();
   }
   
 }

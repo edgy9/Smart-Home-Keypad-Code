@@ -37,7 +37,6 @@ void ping() {
 }
 void sync() {
     if (synced == false) {
-        synced = true;
         while (canceled_sync == false) {
             if (digitalRead(3) == HIGH) {                                         ////
                digitalWrite(rx_tx_pin, HIGH ); //enable to transmit
@@ -59,6 +58,7 @@ void sync() {
                             if(Serial.read()=='F') //finish reading
                                 {
                                   const int device_id = new_device_id;
+                                  synced = true;
                                 }
                          } 
                      }       
@@ -109,42 +109,41 @@ void setup() {
 
 
 void loop() {
-  if(synced == False){
-      if ( Serial.available ()) {
+  
+    if ( Serial.available ()) {
         if ( Serial.read () == 'I' ) {
           char id = Serial.read();
-          if (id == "Z"){       // z meaning id for all unadopted devices
-              char function = Serial.read ();
-              if (function == 'S' ) {
-                  if ( Serial.read () == 'F' ) {
-                    sync();
+          if(synced == False){
+              if (id == "Z"){       // z meaning id for all unadopted devices
+                  char function = Serial.read ();
+                  if (function == 'S' ) {
+                      if ( Serial.read () == 'F' ) {
+                        sync();
+                        }
+                      }
+                  }
+          }
+          
+          else{
+              if (id == device_id){
+                  if (function == 'P'){
+                    ping();
                     }
                   }
-              }
-          
-          
-          if (id == device_id){
-              if (function == 'P'){
-                ping();
-                }
-              }
             }
-      }
+        }
     }
-  else{
-    
-  }
-}
 
-for (uint8_t switch_id = 0; switch_id < num_switches; switch_id++) {
-    if (my_switches.read_switch(switch_id) == switched) {
+
+  for (uint8_t switch_id = 0; switch_id < num_switches; switch_id++) {
+      if (my_switches.read_switch(switch_id) == switched) {
       
       // *** Add any code here, if any, to process this switch as it has been actuated.
       // *** This is in addition to whatever the ISR does following the triggering
       // *** of the interrupt, if this switch has been linked to the common interrupt pin.
 
     }
-}
+  }
 }
 
 
@@ -157,8 +156,12 @@ void switch_ISR()
   // Reset the soft status of the switch setting to ensure that we get an interrupt event
   // on the linked interrupt pin at next switch change
   my_switches.switches[switch_id].switch_out_pin_status = LOW;
-  Serial.print("** Interrupt triggered for switch id: ");
-  Serial.print(switch_id); // the id of the last triggering switch
-  Serial.println();
-  Serial.flush();
+  if(synced == true) {
+    Serial.print("i");
+    Serial.print(device_id);
+    Serial.print("u");
+    Serial.print(switch_id); // the id of the last triggering switch
+    Serial.print("f");
+    Serial.flush();
+  }
 }
