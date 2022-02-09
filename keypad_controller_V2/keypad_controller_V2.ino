@@ -33,6 +33,11 @@ byte device_list[][3] =   //id
   15, 0,  offline,
 };
 
+const char h_path = "/light_switch_controller/" + controller_id + "/stats/humidity/";
+const char t_path = "/light_switch_controller/" + controller_id + "/stats/temperature"/;
+const char mac_path = "/light_switch_controller/" + controller_id + "/stats/mac/";
+const char ip_path = "//light_switch_controller/" + controller_id + "/stats/ip/";
+
 EthernetClient net;
 MQTTClient client;
 DHT dht(DHTPIN, DHTTYPE);
@@ -53,6 +58,9 @@ void connect() {
 
 void messageReceived(String &topic, String &payload) {
   Serial.println("incoming: " + topic + " - " + payload);
+  //if(topic == "/light_switch_controller/stats/command/") && ("update"){
+    
+  
 
   // Note: Do not use the client in the callback to publish, subscribe or
   // unsubscribe as it may cause deadlocks when other things arrive while
@@ -92,8 +100,24 @@ void ping_devices(){
   }
 }
 
+void send_start_stats(){
+    
+    
+    float temperature = dht.readTemperature();
+    float humidity = dht.readHumidity();
+    client.publish(h_path, humidity);
+    client.publish(t_path, temperature);
+    client.publish(mac_path, mac);
+    client.publish(ip_path, ip);
+    
+    
+
+  
+}
+
 void update_button(int id, int button_id){
   Serial.println(id, button_id);
+  
 }
 void setup() {
    Serial.begin(9600);
@@ -105,37 +129,40 @@ void setup() {
    client.onMessage(messageReceived);
    connect();
    ping_devices();
-   
+   send_start_stats();
 }
-void loop() {
-  client.loop();
-
-  if (!client.connected()) {
-    connect();
-  }
-
-  if (millis() - lastMillis > 10000) {       //send temperature every 10 seconds
+void send_stats(){
     lastMillis = millis();
     char h_path = "/light_switch_controller/" + controller_id + "/stats/humidity/";
     char t_path = "/light_switch_controller/" + controller_id + "/stats/temperature"/;
     float temperature = dht.readTemperature();
     float humidity = dht.readHumidity();
-    client.publish(h_path, temperature);
+    client.publish(t_path, temperature);
+    client.publish(h_path, humiditity);
+}
+void loop() {
+  client.loop();
+
+  if (!client.connected()) {  connect();    }
+  if (millis() - lastMillis > 10000) {    send_stats()    }   //send temperature every 10 seconds
     
+   
   if (sync_button == true) {
     sync();
   }
-   if ( Serial.available ()) {
-        if ( Serial.read () == 'i' ) {
-          char id = Serial.read();
-          char function = Serial.read ();
-          if (function == 'u' ) {
-              char button_id = Serial.read ();
-              if ( Serial.read () == 'f' ) {
-                        update_button(id,button_id);
-                        }
+
+  
+  if ( Serial.available ()) {
+      if ( Serial.read () == 'i' ) {
+        char device_id = Serial.read();
+        char function = Serial.read ();
+        if (function == 'u' ) {
+            char button_id = Serial.read ();
+            if ( Serial.read () == 'f' ) {
+                      update_button(device_id,button_id);
                       }
-                  }
+                    }
+                }
 
 }
 
