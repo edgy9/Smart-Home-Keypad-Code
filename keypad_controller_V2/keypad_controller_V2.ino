@@ -1,17 +1,18 @@
 #include <Ethernet.h>
-#include <MQTT.h>
+#include <PubSubClient.h>
 #include "DHT.h"
 
-#define DHTPIN 2  
+#define DHTPIN 3  
 #define DHTTYPE DHT22
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-byte ip[] = {192, 168, 1, 102};  // <- change to match your network
+IPAddress ip(192, 168, 1, 102);
+IPAddress server(192, 168, 1, 25);
 
 bool sync_button = false;
 unsigned long lastMillis = 0;
-const int controller_id = 1
-int online =     1;
-int offline =    0;
+const int controller_id = 1;
+byte online =     1;
+byte offline =    0;
 byte device_list[][3] =   //id 
                           //device type 0 = unasigned, 1 = keypad
 {
@@ -32,33 +33,56 @@ byte device_list[][3] =   //id
   14, 0,  offline,
   15, 0,  offline,
 };
+const char* mqtt_device_topic = "light_switch_controller/1";
+const char* h_topic = "/stats/humidity/";
+const char* t_topic = "/stats/temperature/";
+const char* mac_topic = "/stats/mac/";
+const char* ip_topic = "/stats/ip/";
+const char* state_topic = "/stats/state/";
 
-const char h_path = "/light_switch_controller/" + controller_id + "/stats/humidity/";
-const char t_path = "/light_switch_controller/" + controller_id + "/stats/temperature"/;
-const char mac_path = "/light_switch_controller/" + controller_id + "/stats/mac/";
-const char ip_path = "//light_switch_controller/" + controller_id + "/stats/ip/";
 
-EthernetClient net;
-MQTTClient client;
-DHT dht(DHTPIN, DHTTYPE);
-
-void connect() {
-  Serial.print("connecting...");
-  while (!client.connect("arduino", "public", "public")) {
-    Serial.print(".");
-    delay(1000);
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i=0;i<length;i++) {
+    Serial.print((char)payload[i]);
   }
-
-  Serial.println("\nconnected!");
-  char path = "/light_switch_controller/" + controller_id
-  client.subscribe(path);
-  // client.unsubscribe("/hello");
+  Serial.println();
 }
 
 
-void messageReceived(String &topic, String &payload) {
-  Serial.println("incoming: " + topic + " - " + payload);
-  //if(topic == "/light_switch_controller/stats/command/") && ("update"){
+EthernetClient ethClient;
+PubSubClient client(ethClient);
+DHT dht(DHTPIN, DHTTYPE);
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    //Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect("arduinoClient")) {
+      //Serial.println("connected");
+      // Once connected, publish an announcement...
+      char topic[38];
+      strcpy(topic, mqtt_device_topic);
+      strcat(topic, state_topic);
+      client.publish(topic,"Connected");
+      // ... and resubscribe
+      
+      client.subscribe(topic);
+    } else {
+      //Serial.print("failed, rc=");
+      //Serial.print(client.state());
+      //Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+
+
+
+
     
   
 
@@ -72,7 +96,8 @@ void messageReceived(String &topic, String &payload) {
 void ping_devices(){
   digitalWrite(2, HIGH);
   int i = 1;
-  while (i < 17) {
+  while (i < 2) {
+  //while (i < 17) {                      //////////
     i = i + 1;
     Serial.print("I");
     Serial.print(i);
@@ -102,13 +127,56 @@ void ping_devices(){
 
 void send_start_stats(){
     
+    Serial.print("sending start stats");
+
+
+
     
-    float temperature = dht.readTemperature();
-    float humidity = dht.readHumidity();
-    client.publish(h_path, humidity);
-    client.publish(t_path, temperature);
-    client.publish(mac_path, mac);
-    client.publish(ip_path, ip);
+    float h = dht.readHumidity();
+  // Read temperature as Celsius (the default)
+  float t = dht.readTemperature();
+  // Read temperature as Fahrenheit (isFahrenheit = true)
+  float f = dht.readTemperature(true);
+  Serial.print(f);
+  Serial.print(t);
+  Serial.print(h);
+  // Check if any reads failed and exit early (to try again).
+  if (isnan(h) || isnan(t) || isnan(f)) {
+    Serial.println(F("Failed to read from DHT sensor!"));
+    return;
+  }
+
+
+  
+
+
+  
+    float f_temperature = dht.readTemperature();
+    char temperature[5];
+    dtostrf(f_temperature, 5, 2, temperature); 
+    Serial.print(temperature);
+    
+    float f_humidity = dht.readHumidity();
+    char humidity[5];
+    dtostrf(f_humidity, 5, 2, humidity); 
+    Serial.print(f_humidity);
+    
+    char topic[50];
+    strcpy(topic, mqtt_device_topic);
+    strcat(topic, t_topic);
+    client.publish(topic, temperature);
+    
+    strcpy(topic, mqtt_device_topic);
+    strcat(topic, h_topic);
+    client.publish(topic, humidity);
+    
+    strcpy(topic, mqtt_device_topic);
+    strcat(topic, mac_topic);
+    client.publish(topic, mac);
+    
+    strcpy(topic, mqtt_device_topic);
+    strcat(topic, ip_topic);
+    client.publish(topic, ip);
     
     
 
@@ -121,30 +189,54 @@ void update_button(int id, int button_id){
 }
 void setup() {
    Serial.begin(9600);
-   Ethernet.begin(mac, ip);
+   
    pinMode(2, OUTPUT);
    digitalWrite (2, HIGH );
    dht.begin();
-   client.begin("192.168.1.25", net);
-   client.onMessage(messageReceived);
-   connect();
+   client.setServer(server, 1883);
+   client.setCallback(callback);
+   Ethernet.begin(mac, ip);
+   // Allow the hardware to sort itself out
+   delay(1500);
    ping_devices();
    send_start_stats();
 }
 void send_stats(){
     lastMillis = millis();
-    char h_path = "/light_switch_controller/" + controller_id + "/stats/humidity/";
-    char t_path = "/light_switch_controller/" + controller_id + "/stats/temperature"/;
-    float temperature = dht.readTemperature();
-    float humidity = dht.readHumidity();
-    client.publish(t_path, temperature);
-    client.publish(h_path, humiditity);
+
+    char topic[50];
+    strcpy(topic, mqtt_device_topic);
+    strcat(topic, t_topic);
+    
+    float f_temperature = dht.readTemperature();
+    char temperature[5];
+    dtostrf(f_temperature, 5, 2, temperature); 
+    //Serial.write(temperature);
+    
+    
+    client.publish(topic, temperature);
+    
+    float f_humidity = dht.readHumidity();
+    char humidity[5];
+    dtostrf(f_humidity, 5, 2, humidity); 
+    
+    //Serial.println(humidity);
+    
+    
+       
+    strcpy(topic, mqtt_device_topic);
+    strcat(topic, h_topic);
+    client.publish(topic, humidity);
+    //Serial.println(humidity);
+    
+    //client.publish(t_topic, temperature);
+   // client.publish(h_topic, humiditity);
 }
 void loop() {
+  
   client.loop();
-
-  if (!client.connected()) {  connect();    }
-  if (millis() - lastMillis > 10000) {    send_stats()    }   //send temperature every 10 seconds
+  if (!client.connected()) {  reconnect();    }
+  if (millis() - lastMillis > 10000) {    send_stats();    }   //send temperature every 10 seconds
     
    
   if (sync_button == true) {
@@ -172,7 +264,8 @@ void loop() {
 void new_device() {
   int i = 1;
   ping_devices();
-  while(i < 17){
+ 
+  while(i < 17){                                                              //////////////////
       if(device_list[i][2] == offline){
         int id = i;
         Serial.print("I");

@@ -3,7 +3,7 @@
 #define rx_tx_pin               11
 #define common_interrupt_pin    2
 #define num_switches            8
-//const int device_id = 0;
+const int device_id = 0;
 const int device_type = 1;
 
 bool synced = false;
@@ -113,7 +113,7 @@ void loop() {
     if ( Serial.available ()) {
         if ( Serial.read () == 'I' ) {
           char id = Serial.read();
-          if(synced == False){
+          if(synced == false){
               if (id == "Z"){       // z meaning id for all unadopted devices
                   char function = Serial.read ();
                   if (function == 'S' ) {
@@ -126,6 +126,7 @@ void loop() {
           
           else{
               if (id == device_id){
+                  char function = Serial.read ();
                   if (function == 'P'){
                     ping();
                     }
