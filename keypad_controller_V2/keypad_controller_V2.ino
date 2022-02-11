@@ -33,12 +33,13 @@ byte device_list[][3] =   //id
   14, 0,  offline,
   15, 0,  offline,
 };
-const char* mqtt_device_topic = "light_switch_controller/1";
-const char* h_topic = "/stats/humidity/";
-const char* t_topic = "/stats/temperature/";
+const char* mqtt_device_topic = "L_S_C/1";
+const char* h_topic = "/stats/H/";
+const char* t_topic = "/stats/T/";
 const char* mac_topic = "/stats/mac/";
 const char* ip_topic = "/stats/ip/";
 const char* state_topic = "/stats/state/";
+
 
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -185,7 +186,15 @@ void send_start_stats(){
 
 void update_button(int id, int button_id){
   Serial.println(id, button_id);
-  
+  char topic[30]
+  strcpy(topic, mqtt_device_topic);
+  strcat(topic, "/devices");
+  strcat(topic, id);
+  strcat(topic, "/");
+  strcat(topic, button_id);
+  client.publish(topic, "pressed");
+  delay(10);
+  client.publish(topic, "released");
 }
 void setup() {
    Serial.begin(9600);
@@ -198,8 +207,8 @@ void setup() {
    Ethernet.begin(mac, ip);
    // Allow the hardware to sort itself out
    delay(1500);
-   ping_devices();
-   send_start_stats();
+   //ping_devices();
+   //send_start_stats();
 }
 void send_stats(){
     lastMillis = millis();
