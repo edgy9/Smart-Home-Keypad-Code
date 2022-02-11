@@ -6,7 +6,7 @@
 const int device_id = 0;
 const int device_type = 1;
 
-bool synced = false;
+bool synced = true;
 bool canceled_sync = false;
 
 Switches my_switches(num_switches); // create the 'Switches' instance for the given number of switches
@@ -109,7 +109,7 @@ void setup() {
 
 
 void loop() {
-  
+    digitalWrite(rx_tx_pin, LOW);
     if ( Serial.available ()) {
         if ( Serial.read () == 'I' ) {
           char id = Serial.read();
@@ -138,7 +138,16 @@ void loop() {
 
   for (uint8_t switch_id = 0; switch_id < num_switches; switch_id++) {
       if (my_switches.read_switch(switch_id) == switched) {
-      
+      if(synced == true) {
+          digitalWrite(rx_tx_pin, HIGH);
+          Serial.print("i");
+          Serial.print(device_id);
+          Serial.print("u");
+          Serial.print(switch_id); // the id of the last triggering switch
+          Serial.print("f");
+          Serial.flush();
+          digitalWrite(rx_tx_pin, LOW);
+        }
       // *** Add any code here, if any, to process this switch as it has been actuated.
       // *** This is in addition to whatever the ISR does following the triggering
       // *** of the interrupt, if this switch has been linked to the common interrupt pin.
@@ -157,12 +166,5 @@ void switch_ISR()
   // Reset the soft status of the switch setting to ensure that we get an interrupt event
   // on the linked interrupt pin at next switch change
   my_switches.switches[switch_id].switch_out_pin_status = LOW;
-  if(synced == true) {
-    Serial.print("i");
-    Serial.print(device_id);
-    Serial.print("u");
-    Serial.print(switch_id); // the id of the last triggering switch
-    Serial.print("f");
-    Serial.flush();
-  }
+  
 }

@@ -124,6 +124,7 @@ void ping_devices(){
     
     
   }
+  digitalWrite(2, LOW);
 }
 
 void send_start_stats(){
@@ -186,7 +187,7 @@ void send_start_stats(){
 
 void update_button(int id, int button_id){
   Serial.println(id, button_id);
-  char topic[30]
+  char topic[30];
   strcpy(topic, mqtt_device_topic);
   strcat(topic, "/devices");
   strcat(topic, id);
@@ -200,7 +201,7 @@ void setup() {
    Serial.begin(9600);
    
    pinMode(2, OUTPUT);
-   digitalWrite (2, HIGH );
+   digitalWrite (2, LOW );
    dht.begin();
    client.setServer(server, 1883);
    client.setCallback(callback);
@@ -251,9 +252,10 @@ void loop() {
   if (sync_button == true) {
     sync();
   }
-
   
+  digitalWrite(2, LOW);
   if ( Serial.available ()) {
+      Serial.print("why");
       if ( Serial.read () == 'i' ) {
         char device_id = Serial.read();
         char function = Serial.read ();
@@ -261,6 +263,7 @@ void loop() {
             char button_id = Serial.read ();
             if ( Serial.read () == 'f' ) {
                       update_button(device_id,button_id);
+                      Serial.print("recieved");
                       }
                     }
                 }
