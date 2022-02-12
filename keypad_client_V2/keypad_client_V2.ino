@@ -3,7 +3,7 @@
 #define rx_tx_pin               11
 #define common_interrupt_pin    2
 #define num_switches            8
-const int device_id = 0;
+const int device_id = 3;
 const int device_type = 1;
 
 bool synced = true;

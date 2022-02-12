@@ -1,7 +1,7 @@
 #include <Ethernet.h>
 #include <PubSubClient.h>
 #include "DHT.h"
-
+#define rx_tx_pin               2
 #define DHTPIN 3  
 #define DHTTYPE DHT22
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
@@ -95,7 +95,7 @@ void reconnect() {
 
 
 void ping_devices(){
-  digitalWrite(2, HIGH);
+  digitalWrite(rx_tx_pin, HIGH);
   int i = 1;
   while (i < 2) {
   //while (i < 17) {                      //////////
@@ -104,7 +104,7 @@ void ping_devices(){
     Serial.print(i);
     Serial.print("P");
     
-    digitalWrite(2, LOW);
+    digitalWrite(rx_tx_pin, LOW);
     
     if(Serial.find("i")) {
         if(Serial.read() == i) {
@@ -124,7 +124,7 @@ void ping_devices(){
     
     
   }
-  digitalWrite(2, LOW);
+  digitalWrite(rx_tx_pin, LOW);
 }
 
 void send_start_stats(){
@@ -186,13 +186,12 @@ void send_start_stats(){
 }
 
 void update_button(int id, int button_id){
-  Serial.println(id, button_id);
+  Serial.println(id);
+
+  Serial.print(button_id);
   char topic[30];
-  strcpy(topic, mqtt_device_topic);
-  strcat(topic, "/devices");
-  strcat(topic, id);
-  strcat(topic, "/");
-  strcat(topic, button_id);
+  sprintf(topic, "%s/devices/%d/buttons/%d", mqtt_device_topic, id, button_id);
+  
   client.publish(topic, "pressed");
   delay(10);
   client.publish(topic, "released");
@@ -200,8 +199,8 @@ void update_button(int id, int button_id){
 void setup() {
    Serial.begin(9600);
    
-   pinMode(2, OUTPUT);
-   digitalWrite (2, LOW );
+   pinMode(rx_tx_pin, OUTPUT);
+   digitalWrite (rx_tx_pin, LOW );
    dht.begin();
    client.setServer(server, 1883);
    client.setCallback(callback);
@@ -253,21 +252,25 @@ void loop() {
     sync();
   }
   
-  digitalWrite(2, LOW);
+  digitalWrite(rx_tx_pin, LOW);
   if ( Serial.available ()) {
       Serial.print("why");
       if ( Serial.read () == 'i' ) {
-        char device_id = Serial.read();
+        int device_id = Serial.parseInt ();
+        Serial.print(device_id);
+        
+        
         char function = Serial.read ();
         if (function == 'u' ) {
-            char button_id = Serial.read ();
+            int button_id = Serial.parseInt ();
+            Serial.print(button_id);
             if ( Serial.read () == 'f' ) {
                       update_button(device_id,button_id);
                       Serial.print("recieved");
                       }
                     }
                 }
-
+     
 }
 
   
@@ -300,7 +303,7 @@ void sync() {
   Serial.print("F"); //finish data packet
   Serial.flush();    
   
-  digitalWrite(2, LOW);
+  digitalWrite(rx_tx_pin, LOW);
   
   if(Serial.find("i")) {
       if(Serial.read() =='z') {
@@ -309,7 +312,7 @@ void sync() {
                   if(Serial.read()=='f') //finish reading
                       {
                 
-                         digitalWrite(2, HIGH);
+                         digitalWrite(rx_tx_pin, HIGH);
                          new_device(); 
                       }
               } 
