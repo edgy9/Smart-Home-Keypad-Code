@@ -1,5 +1,7 @@
 #include <Ethernet.h>
 #include <PubSubClient.h>
+#include <ArduinoJson.h>
+
 #include "DHT.h"
 #define rx_tx_pin               2
 #define DHTPIN 3  
@@ -7,6 +9,7 @@
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 IPAddress ip(192, 168, 1, 102);
 IPAddress server(192, 168, 1, 25);
+EthernetServer server(80);
 
 bool sync_button = false;
 unsigned long lastMillis = 0;
@@ -97,9 +100,9 @@ void reconnect() {
 void ping_devices(){
   digitalWrite(rx_tx_pin, HIGH);
   int i = 1;
-  while (i < 2) {
+  for (int i=0; i<17; i++){
   //while (i < 17) {                      //////////
-    i = i + 1;
+    
     Serial.print("I");
     Serial.print(i);
     Serial.print("P");
@@ -207,6 +210,7 @@ void setup() {
    Ethernet.begin(mac, ip);
    // Allow the hardware to sort itself out
    delay(1500);
+   server.begin();
    //ping_devices();
    //send_start_stats();
 }
