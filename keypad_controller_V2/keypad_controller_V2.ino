@@ -36,7 +36,7 @@ byte device_list[][3] =   //id
   14, 0,  offline,
   15, 0,  offline,
 };
-const char* mqtt_device_topic = "L_S_C/1";
+const char* mqtt_device_topic = "L_S_C";
 const char* h_topic = "/stats/H/";
 const char* t_topic = "/stats/T/";
 const char* mac_topic = "/stats/mac/";
