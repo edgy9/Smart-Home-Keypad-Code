@@ -7,6 +7,11 @@
 #define rx_tx_pin               2
 #define DHTPIN 3  
 #define DHTTYPE DHT22
+
+
+#define firmware_version  "V3.0.0"
+
+
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 IPAddress ip(192, 168, 0, 102);
 IPAddress server(192, 168, 0, 105);
@@ -15,13 +20,40 @@ IPAddress server(192, 168, 0, 105);
 int adopted_eeprom_addr = 0;
 int uuid_eeprom_addr = 2;
 int alias_eeprom_addr = 4;
-int device_uuid;
-char* device_alias;
+int controller_uuid;
+char char_controller_uuid[4];
+char* controller_alias;
 int device_state = 0;   //0 = booting, 1 = pending adoption, 2 = running
 
-const char* mqtt_device_topic = "L_S_C";
+const char* mqtt_device_topic = "L_S_C/";
 const char* mqtt_adoption_topic = "/adoption";
 const char* mqtt_state_topic = "/state";
+
+
+byte online =     1;
+byte offline =    0;
+byte device_list[][3] =   //id 
+                          //device type 0 = unasigned, 1 = keypad
+{
+  0,  0,  offline,
+  1,  0,  offline,
+  2,  0,  offline,
+  3,  0,  offline,
+  4,  0,  offline,
+  5,  0,  offline,
+  6,  0,  offline,
+  7,  0,  offline,
+  8,  0,  offline,
+  9,  0,  offline,
+  10, 0,  offline,
+  11, 0,  offline,
+  12, 0,  offline,
+  13, 0,  offline,
+  14, 0,  offline,
+  15, 0,  offline,
+};
+
+bool sync_button = false;
 
 void callback(char* topic, byte* payload, unsigned int length) {
   char str[length+1];
@@ -38,7 +70,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println();
 
 
-  if (device_state == 1) {    /.if in pending adoption state
+  if (device_state == 1) {    //if in pending adoption state
       StaticJsonDocument<20> adoption;      //create doc
       DeserializationError error = deserializeJson(adoption, payload); 
       
@@ -49,13 +81,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
        // return;
       //}
     
-      device_alias = adoption["alias"];
-      device_uuid = adoption["uuid"];
-      EEPROM.write(uuid_eeprom_addr, device_uuid);
-      EEPROM.put(alias_eeprom_addr, device_alias);
-      Serial.println(device_alias);
-      Serial.println(device_uuid);
-      EEPROM.write(adopted_eeprom_addr, 100);//successfully adopted
+      controller_alias = adoption["alias"];
+      int int_controller_uuid = adoption["uuid"];
+      dtostrf(int_controller_uuid, 3,0,controller_uuid);//convert to char with 3 digits
+      EEPROM.write(uuid_eeprom_addr, controller_uuid);
+      EEPROM.put(alias_eeprom_addr, controller_alias);
+     // Serial.println(controller_alias);
+      Serial.println(controller_uuid);
+      EEPROM.write(adopted_eeprom_addr, 102);//successfully adopted
       device_state = 2;   //set state to running
       }
   //}
@@ -71,16 +104,21 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("arduinoClient")) {
+    if (client.connect("keypad_controller_v3")) {
       Serial.println("connected");
-      // Once connected, publish an announcement...
+      // Once connected, publish connected
+      
       char topic[38];
       strcpy(topic, mqtt_device_topic);
+      dtostrf(123, 3,0,char_controller_uuid);
+      strcat(topic, char_controller_uuid);
       strcat(topic, mqtt_state_topic);
+      
       client.publish(topic,"Connected");
       // ... and resubscribe
       
       client.subscribe(topic);
+      
     } else {
       //Serial.print("failed, rc=");
       //Serial.print(client.state());
@@ -90,18 +128,73 @@ void reconnect() {
     }
   }
 }
+
+
+
+
+void ping_devices(){
+  
+  int i = 1;
+  for (int i=0; i<17; i++){
+  //while (i < 17) {                      //////////
+    digitalWrite(rx_tx_pin, HIGH);
+    Serial.print('I');
+    Serial.print(i);
+    Serial.print('P');
+    Serial.flush();  
+    digitalWrite(rx_tx_pin, LOW);
+    delay(1000); 
+    if(Serial.find('i')) {
+        
+        int id = Serial.parseInt();
+        
+        if(Serial.read() == 'p'){
+          int device_type=Serial.parseInt(); 
+          if(Serial.read()=='f') //finish reading
+          {
+            digitalWrite(5, HIGH);
+            device_list[i][1] = device_type;
+            device_list[i][2] = online;
+            delay(100);
+            digitalWrite(5, LOW);
+          }
+         
+       }       
+     }
+     else{
+          device_list[i][2] = offline;
+     }
+    
+    
+  }
+  digitalWrite(rx_tx_pin, LOW);
+}
+
+
+
+
 void get_controller_id(){
    int adopted = 0;
    adopted = EEPROM.read(adopted_eeprom_addr);
-   Serial.print(adopted);
-   if(adopted == 100){
+  
+   if(adopted == 102){//arpitary value that shows has already been adopted
       //has already been adopted
-      int id = 0;
-      id = EEPROM.read(uuid_eeprom_addr);
-      Serial.print("controller id:");
-      Serial.println(id);
+      
+      controller_uuid = EEPROM.read(uuid_eeprom_addr);
+      //dtostrf(controller_uuid, 3,0,controller_uuid);//convert to char with 3 digits
+      Serial.print("Controller ID: ");
+      Serial.println(controller_uuid);
+      //controller_alias = EEPROM.get(alias_eeprom_addr);
+      //Serial.print("controller alias: TODO");
+      //Serial.println(controller_alias);
+      reconnect();
+      client.loop();
      }
    else{
+      
+      reconnect();
+      client.loop();
+      delay(1000);
       Serial.print("not adopted");
       char topic[50];
       strcpy(topic, mqtt_device_topic);
@@ -113,13 +206,28 @@ void get_controller_id(){
       device_state = 1;
    }
 }
+
+
+void update_button(int id, int button_id){
+  Serial.println(id);
+
+  Serial.print(button_id);
+  char topic[30];
+  sprintf(topic, "%sdevices/%d/buttons/%d", mqtt_device_topic, id, button_id);
   
+  client.publish(topic, "pressed");
+  delay(10);
+  client.publish(topic, "released");
+}  
+
+
 void setup() {
    //initialise serial
    Serial.begin(9600);
    //setup rs485 com pin
    pinMode(rx_tx_pin, OUTPUT);
    digitalWrite (rx_tx_pin, LOW );
+   pinMode(5, OUTPUT);
    //start temp sensor
    dht.begin();
    //setup mqtt server
@@ -128,17 +236,90 @@ void setup() {
    Ethernet.begin(mac, ip);
    // Allow the hardware to sort itself out
    delay(1500);
-   Serial.print("started");
+   Serial.print("L_S_C started @ ");
    Serial.println(ip);
-   //start mqtt server
-   //server.begin();
-   reconnect();
-   client.loop();
-   get_controller_id();
+   Serial.print("Firmware: ");
+   Serial.println(firmware_version);
+   get_controller_id();//this will get controller id before starting mqtt server
+   ping_devices();
+   
+   
 }
 
 void loop() {
   
   client.loop();
   if (!client.connected()) {  reconnect();    }
+
+  if (sync_button == true) {
+    sync();
+  }
+  
+  digitalWrite(rx_tx_pin, LOW);
+  if ( Serial.available ()) {
+      Serial.print("why");
+      if ( Serial.read () == 'i' ) {
+        int device_id = Serial.parseInt ();
+        Serial.print(device_id);
+        
+        
+        char function = Serial.read ();
+        if (function == 'u' ) {
+            int button_id = Serial.parseInt ();
+            Serial.print(button_id);
+            if ( Serial.read () == 'f' ) {
+                      update_button(device_id,button_id);
+                      Serial.print("recieved");
+                      }
+                    }
+                }
+     
+}
+}
+
+void new_device() {
+  int i = 1;
+  ping_devices();
+ 
+  while(i < 17){                                                              //////////////////
+      if(device_list[i][2] == offline){
+        int id = i;
+        Serial.print('I');
+        Serial.print('N');
+        Serial.print('P');
+        Serial.print(id);
+        Serial.print('F');
+        break;
+        }
+      ping_devices();
+  }
+  
+}
+
+void sync() {
+  
+  Serial.print('I'); //initiate data packet
+  Serial.print('Z'); //code for unassigned
+  Serial.print('S'); //code for Sync
+  Serial.print('F'); //finish data packet
+  Serial.flush();    
+  
+  digitalWrite(rx_tx_pin, LOW);
+  
+  if(Serial.find('i')) {
+      if(Serial.read() =='z') {
+          if(Serial.read() =='n') {
+              if(Serial.read() =='n') {
+                  if(Serial.read()=='f') //finish reading
+                      {
+                
+                         digitalWrite(rx_tx_pin, HIGH);
+                         new_device(); 
+                      }
+              } 
+          }
+      
+      }
+
+  }
 }

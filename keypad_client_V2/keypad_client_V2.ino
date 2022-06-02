@@ -28,10 +28,11 @@ byte my_switch_data[][3] =
 
 void ping() {
     digitalWrite(rx_tx_pin,HIGH);
-    Serial.write("i");
-    Serial.write(device_id);
-    Serial.write("p");
-    Serial.write(device_type);
+    Serial.print("i");
+    Serial.print(device_id);
+    Serial.print("p");
+    Serial.print(device_type);
+    Serial.print("f");
     Serial.flush();
     digitalWrite(rx_tx_pin,LOW);
 }
@@ -112,7 +113,8 @@ void loop() {
     digitalWrite(rx_tx_pin, LOW);
     if ( Serial.available ()) {
         if ( Serial.read () == 'I' ) {
-          char id = Serial.read();
+          int id = Serial.parseInt();
+          Serial.println(id);
           if(synced == false){
               if (id == "Z"){       // z meaning id for all unadopted devices
                   char function = Serial.read ();
