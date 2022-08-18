@@ -1,10 +1,15 @@
-#define rx_tx_pin               11
-#define num_switches            7
-const int device_id = 2;
+#define rx_tx_pin               5
+#define num_switches            12
+const int device_id = 3;
 const int device_type = 1;
 
 unsigned long debounce_delay = 50;
-unsigned long last_debounce_time[7] = {
+unsigned long last_debounce_time[num_switches] = {
+  0,
+  0,
+  0,
+  0,
+  0,
   0,
   0,
   0,
@@ -20,7 +25,12 @@ int true_current_state;
 
 bool synced = true;
 bool canceled_sync = false;
-bool counting[7] = {
+bool counting[num_switches] = {
+  false,
+  false,
+  false,
+  false,
+  false,
   false,
   false,
   false,
@@ -30,7 +40,12 @@ bool counting[7] = {
   false
 };
 
-int lastState[7] = {
+int lastState[12] = {
+LOW,
+LOW,
+LOW,
+LOW,
+LOW,
 LOW,
 LOW,
 LOW,
@@ -38,6 +53,21 @@ LOW,
 LOW,
 LOW,
 LOW};
+
+int switch_pins[12] = {
+  34, 
+  35, 
+  25, 
+  26,                                                                     
+  27, 
+  14, 
+  22, 
+  21, 
+  19, 
+  18, 
+  17, 
+  16
+};
 void ping() {
     digitalWrite(rx_tx_pin,HIGH);
     Serial.print('i');
@@ -52,7 +82,7 @@ void sync() {
     Serial.println("sinking");
     if (synced == false) {
         while (canceled_sync == false) {
-            if (digitalRead(9) == HIGH) {                                         ////
+            if (digitalRead(16) == HIGH) {                                         ////
                digitalWrite(rx_tx_pin, HIGH ); //enable to transmit
                Serial.print('i');
                Serial.print('z');
@@ -87,14 +117,18 @@ void setup() {
   Serial.begin(9600);
   pinMode(rx_tx_pin, OUTPUT);
                                                                       
-  pinMode(3, INPUT);
-  pinMode(4, INPUT);
-  pinMode(5, INPUT);
-  pinMode(6, INPUT);                                                                    
-  pinMode(7, INPUT);
-  pinMode(8, INPUT);
-  pinMode(9, INPUT);
-  pinMode(10, INPUT);
+  pinMode(34, INPUT);
+  pinMode(35, INPUT);
+  pinMode(25, INPUT);
+  pinMode(26, INPUT);                                                                    
+  pinMode(27, INPUT);
+  pinMode(14, INPUT);
+  pinMode(22, INPUT);
+  pinMode(21, INPUT);
+  pinMode(19, INPUT);
+  pinMode(18, INPUT);
+  pinMode(17, INPUT);
+  pinMode(16, INPUT);
   digitalWrite (rx_tx_pin, LOW );
   Serial.println("starting");
   
@@ -141,12 +175,13 @@ void loop() {
         }
     
     if(synced){
-      for (int switch_id = 0; switch_id < num_switches; switch_id++) {
-        currentState = digitalRead(switch_id+3);
+      for (int i = 0; i < 1; i++) {
+        int switch_id = switch_pins[i];
+        currentState = digitalRead(switch_id);
         
       
-        if(lastState[switch_id] == LOW && currentState == HIGH && counting[switch_id] == false){//pressed            
-          counting[switch_id] = true;//counting debounce
+        if(lastState[i] == LOW && currentState == HIGH && counting[i] == false){//pressed            
+          counting[i] = true;//counting debounce
           last_debounce_time[switch_id] = millis();
           digitalWrite(rx_tx_pin, HIGH);
           Serial.print('i');
@@ -157,8 +192,8 @@ void loop() {
           Serial.flush();
           digitalWrite(rx_tx_pin, LOW);
         }
-        if(counting[switch_id]){
-        if(currentState == LOW && ((millis() - last_debounce_time[switch_id]) > debounce_delay)){// released and out of debounce time
+        if(counting[i]){
+        if(currentState == LOW && ((millis() - last_debounce_time[i]) > debounce_delay)){// released and out of debounce time
                 
             digitalWrite(rx_tx_pin, HIGH);
             Serial.print('i');
@@ -168,10 +203,10 @@ void loop() {
             Serial.print('f');
             Serial.flush();
             digitalWrite(rx_tx_pin, LOW);
-            counting[switch_id] = false;
+            counting[i] = false;
             }
           }
-          lastState[switch_id] = currentState;
+          lastState[i] = currentState;
       }
     }
 }

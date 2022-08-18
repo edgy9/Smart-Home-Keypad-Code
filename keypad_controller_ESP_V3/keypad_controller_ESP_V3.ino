@@ -20,7 +20,7 @@ IPAddress server(192, 168, 0, 105);
 int adopted_eeprom_addr = 10;
 int uuid_eeprom_addr = 12;
 int alias_eeprom_addr = 14;
-int controller_uuid;
+uint8_t controller_uuid;
 char char_controller_uuid[4];
 char* controller_alias;
 int device_state = 0;   //0 = booting, 1 = pending adoption, 2 = running
@@ -173,10 +173,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
        // return;
       //}
     
-      controller_alias = adoption["alias"];
-      int int_controller_uuid = adoption["uuid"];
-      dtostrf(int_controller_uuid, 3,0,controller_uuid);//convert to char with 3 digits
-      EEPROM.write(uuid_eeprom_addr, controller_uuid);
+      //controller_alias = adoption["alias"];
+      const uint8_t int_controller_uuid = adoption["uuid"];
+      //dtostrf(int_controller_uuid, 3,0,controller_uuid);//convert to char with 3 digits
+      EEPROM.write(uuid_eeprom_addr, int_controller_uuid);
       EEPROM.put(alias_eeprom_addr, controller_alias);
      // Serial.println(controller_alias);
       Serial.println(controller_uuid);
