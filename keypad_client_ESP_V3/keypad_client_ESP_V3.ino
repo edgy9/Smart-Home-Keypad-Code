@@ -1,4 +1,4 @@
-#define rx_tx_pin               5
+#define rx_tx_pin               4
 #define num_switches            12
 const int device_id = 3;
 const int device_type = 1;
@@ -102,6 +102,7 @@ void sync() {
                             if(Serial.read()=='F') //finish reading
                                 {
                                   const int device_id = new_device_id;
+                                  Serial.println(device_id);
                                   synced = true;
                                 }
                          } 
@@ -114,9 +115,16 @@ void sync() {
 
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
+  delay(5000);
   pinMode(rx_tx_pin, OUTPUT);
-                                                                      
+  digitalWrite (rx_tx_pin, LOW ); 
+  delay(100);
+  digitalWrite (rx_tx_pin, HIGH );  
+  delay(100);
+  digitalWrite (rx_tx_pin, LOW );
+  Serial.println("starting keypad client esp v3");
+                                                    
   pinMode(34, INPUT);
   pinMode(35, INPUT);
   pinMode(25, INPUT);
@@ -175,7 +183,7 @@ void loop() {
         }
     
     if(synced){
-      for (int i = 0; i < 1; i++) {
+      for (int i = 0; i < 12; i++) {
         int switch_id = switch_pins[i];
         currentState = digitalRead(switch_id);
         

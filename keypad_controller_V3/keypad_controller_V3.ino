@@ -323,7 +323,7 @@ void release_button(int id, int button_id){
 
 void setup() {
    //initialise serial
-   Serial.begin(9600);
+   Serial.begin(115200);
    //setup rs485 com pin
    pinMode(rx_tx_pin, OUTPUT);
    digitalWrite (rx_tx_pin, LOW );
